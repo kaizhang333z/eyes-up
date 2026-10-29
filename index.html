@@ -131,7 +131,6 @@ body.focus .hide-on-focus { display: none; }
 .kb .k { flex: 0 0 calc((100% - 36px) / 10); aspect-ratio: 0.8; border-radius: 5px; background: var(--key); display: grid; place-items: center; font-family: var(--f-mono); font-size: 13px; box-shadow: 0 1px 0 color-mix(in oklab, var(--ink) 25%, transparent); color: var(--muted); max-width: 100%; }
 .kb .k.on { color: var(--ink); font-weight: 600; }
 .kb .k.space { flex: 0 0 48%; aspect-ratio: auto; height: 26px; font-size: 11px; }
-.kb.small .k { font-size: 11px; aspect-ratio: 0.85; }
 
 /* results */
 .hero { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
@@ -695,13 +694,12 @@ function renderAbout() {
       ? `<h3>Built from your mistakes</h3><p>A new set every time you start. It leans on the keys you miss most, the letters you mix up, and the letter pairs that slow you down.</p><div class="targets">${d.targets.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>`
       : `<h3>Not enough data yet</h3><p>Finish two or three runs in any mode (about 150 keystrokes) and this drill will target your own weak keys. Until then it runs the common-slips set.</p>`;
   } else body = `<h3>${m.name}</h3><p>${m.desc}</p>`;
-  const keys = m.keys ? new Set(m.keys) : null;
-  $("#about").innerHTML = body + kbHTML(m.layer, ch => keys ? (keys.has(ch) ? { on: true, bg: "var(--accent-soft)" } : {}) : { on: true }, true);
+  $("#about").innerHTML = body;
 }
-function kbHTML(layer, fn, small) {
+function kbHTML(layer, fn) {
   const rows = LAYERS[layer].map(r => `<div class="row">${[...r].map(ch => { const o = fn(ch) || {}; return `<div class="k${o.on ? " on" : ""}" style="${o.bg ? "background:" + o.bg : ""}" title="${esc(o.title || "")}">${esc(ch)}</div>`; }).join("")}</div>`).join("");
   const so = fn(" ") || {};
-  return `<div class="kb${small ? " small" : ""}" aria-hidden="true">${rows}<div class="row"><div class="k space${so.on ? " on" : ""}" style="${so.bg ? "background:" + so.bg : ""}">space</div></div></div>`;
+  return `<div class="kb" aria-hidden="true">${rows}<div class="row"><div class="k space${so.on ? " on" : ""}" style="${so.bg ? "background:" + so.bg : ""}">space</div></div></div>`;
 }
 $("#modes").addEventListener("click", e => {
   const b = e.target.closest("[data-mode]"); if (!b) return;
@@ -831,7 +829,7 @@ function renderWeak() {
   const el = $("#v-weak");
   if (total < 40) {
     el.innerHTML = `<div class="card"><h2>Weak spots</h2><div class="empty"><b>Nothing to show yet.</b><span>Finish a run or two and this page maps your mistakes onto the iPhone keyboard: which keys you miss, which letters you swap, which direction your thumbs drift, and which keys you hesitate on.</span></div>
-      ${kbHTML("abc", () => ({}), false)}</div>`;
+      ${kbHTML("abc", () => ({}))}</div>`;
     return;
   }
   const entries = Object.entries(S.keys).map(([c, k]) => ({ ch: fromCode(c), ...k }));
@@ -879,7 +877,7 @@ function renderWeak() {
         <div class="seg" id="w-layer">${[["abc", "ABC"], ["123", "123"], ["sym", "#+="]].map(([id, l]) => `<button data-l="${id}" aria-pressed="${heatLayer === id}">${l}</button>`).join("")}</div>
         <div class="seg" id="w-metric">${[["err", "Errors"], ["spd", "Speed"]].map(([id, l]) => `<button data-m="${id}" aria-pressed="${heatMetric === id}">${l}</button>`).join("")}</div>
       </div>
-      ${kbHTML(heatLayer, cell, false)}
+      ${kbHTML(heatLayer, cell)}
       <div class="legend"><span>${heatMetric === "err" ? "fewer misses" : "faster"}</span><span class="ramp" style="background:linear-gradient(90deg,var(--key),${heatMetric === "err" ? "var(--bad)" : "var(--accent)"})"></span><span>${heatMetric === "err" ? "more misses" : "slower"}</span></div>
     </div>
     ${notes.length ? `<div class="card"><h2>What the data says</h2>${notes.map(n => `<p>${n}</p>`).join("")}</div>` : ""}
