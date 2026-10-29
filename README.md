@@ -14,10 +14,11 @@ A typing trainer for the iPhone keyboard. The goal is to type fluently without l
 
 ## Use it on an iPhone
 
-1. Open the GitHub Pages URL in Safari.
-2. Tap Share, then Add to Home Screen.
+1. Open https://kaizhang333z.github.io/eyes-up/ in Safari.
+2. Tap Share, then Add to Home Screen, then Add.
+3. Launch it from the Eyes Up icon.
 
-It opens full screen like an app. Progress is stored on the device.
+It opens full screen like an app, works offline after the first launch, and types with the normal iOS keyboard. Progress is stored on the device (in the home-screen app's own storage, separate from Safari's).
 
 ## Run locally
 
