@@ -97,7 +97,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .bar { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
 .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s linear; }
 
-.textbox { position: relative; height: calc(3 * 1.62em); overflow: hidden; font-family: var(--f-mono); font-size: 20px; line-height: 1.62; }
+.textbox { position: relative; height: calc(var(--lines, 3) * 1.62em); overflow: hidden; font-family: var(--f-mono); font-size: 22px; line-height: 1.62; }
 #text { position: relative; transition: transform .15s ease; color: var(--faint); word-break: normal; overflow-wrap: normal; }
 #text .w { white-space: nowrap; }
 #text span.c { position: relative; }
@@ -111,7 +111,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 @media (prefers-reduced-motion: reduce) { #text { transition: none; } #text .c.cur::before { animation: none; } }
 .stage.shake .textbox { animation: shake .18s; }
 @keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
-#inp { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; color: transparent; caret-color: transparent; background: transparent; }
+#inp { position: absolute; inset: 0 0 auto 0; width: 100%; height: 1.62em; opacity: 0; border: 0; padding: 0; font-size: 16px; color: transparent; caret-color: transparent; background: transparent; }
 .hint { margin: 0; font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .hint b { color: var(--ink); font-weight: 600; }
 .paused { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in oklab, var(--panel) 82%, transparent); font-family: var(--f-ui); font-size: 15px; font-weight: 600; pointer-events: none; }
@@ -225,7 +225,7 @@ td.num, th.num { text-align: right; font-family: var(--f-mono); font-variant-num
         <input id="inp" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="done" aria-label="Type the text shown">
         <div class="paused" id="paused" hidden>Paused · tap to keep going</div>
       </div>
-      <p class="hint" id="hint"><span><b>Tap the text</b> to bring up the keyboard. The clock starts on your first key.</span></p>
+      <p class="hint hide-on-focus" id="hint"><span><b>Tap the text</b> to bring up the keyboard. The clock starts on your first key.</span></p>
     </div>
 
     <div class="about hide-on-focus" id="about"></div>
@@ -475,6 +475,8 @@ let T = {};
 const stage = $("#stage"), inp = $("#inp"), textEl = $("#text"), textbox = $("#textbox");
 let spans = [], tick = null;
 
+// timed runs keep at least this many characters queued, enough to fill the tallest text box
+const AHEAD = 500;
 function lenSpec() { const m = MODES[prefs.mode]; if (m.fixed) return { fixed: true }; return LENS.find(l => l.id === prefs.len) || LENS[0]; }
 
 function newTest() {
@@ -483,6 +485,7 @@ function newTest() {
   const n = L.fixed ? 0 : L.w ? L.w : Math.round(L.t * 1.6);
   let target = m.gen(n).replace(/\s+/g, " ").trim();
   if (L.w) target = target.split(" ").slice(0, L.w).join(" ");
+  while (L.t && target.length < AHEAD) target += " " + m.gen(30).replace(/\s+/g, " ").trim();
   T = { mode: prefs.mode, len: L.fixed ? "full" : L.id, limit: L.t ? L.t * 1000 : null, target, typed: "", keys: [], backs: 0,
         start: null, last: null, pausedAt: null, pausedMs: 0, done: false, strict: prefs.strict, blind: prefs.blind };
   inp.value = "";
@@ -556,7 +559,7 @@ function onInput() {
   T.typed = typed;
   if (inp.value !== typed) inp.value = typed;
   if (rejected) { stage.classList.remove("shake"); void stage.offsetWidth; stage.classList.add("shake"); }
-  if (T.limit && T.target.length - typed.length < 80) {
+  while (T.limit && T.target.length - typed.length < AHEAD) {
     const more = " " + MODES[T.mode].gen(30).replace(/\s+/g, " ").trim();
     const off = T.target.length; T.target += more; appendText(more, off);
   }
@@ -597,11 +600,31 @@ inp.addEventListener("focus", () => {
   if (T.pausedAt) { T.pausedMs += performance.now() - T.pausedAt; T.pausedAt = null; }
   $("#paused").hidden = true;
   const len = inp.value.length; try { inp.setSelectionRange(len, len); } catch (e) {}
-  setTimeout(() => window.scrollTo(0, 0), 60);
+  setTimeout(() => { window.scrollTo(0, 0); fitText(); }, 60);
 });
 inp.addEventListener("blur", () => {
   document.body.classList.remove("focus");
   if (T.start && !T.done) { T.pausedAt = performance.now(); $("#paused").hidden = false; }
+  fitText();
+});
+// the input only covers the first line, so taps anywhere on the card focus it
+stage.addEventListener("click", e => { if (!e.target.closest("button") && document.activeElement !== inp) inp.focus(); });
+
+// while typing, grow the text to fill the space between the stats and the keyboard
+function fitText() {
+  let lines = 3;
+  const vv = window.visualViewport;
+  // wait until the on-screen keyboard is up, so the box doesn't grow and then shrink while it slides in
+  if (document.body.classList.contains("focus") && vv && vv.height < screen.height * 0.7) {
+    const bottom = vv.offsetTop + vv.height;
+    const lh = parseFloat(getComputedStyle(textbox).lineHeight) || 36;
+    lines = Math.max(3, Math.min(14, Math.floor((bottom - textbox.getBoundingClientRect().top - 20) / lh)));
+  }
+  textbox.style.setProperty("--lines", lines);
+}
+if (window.visualViewport) window.visualViewport.addEventListener("resize", () => {
+  if (document.body.classList.contains("focus")) window.scrollTo(0, 0);
+  fitText();
 });
 inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); } if (e.key === "Escape") { inp.blur(); } });
 document.addEventListener("selectionchange", () => { if (document.activeElement === inp) { const l = inp.value.length; if (inp.selectionStart !== l) try { inp.setSelectionRange(l, l); } catch (e) {} } });
