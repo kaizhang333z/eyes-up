@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Eyes Up">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,-apple-system,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Eyes Up Typing</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one phone-width column; the typing stage sits at the top so it stays above the iOS keyboard. */
+:root {
+  --bg: #e9edf1;
+  --panel: #f7f9fb;
+  --ink: #17212c;
+  --muted: #5f6d7b;
+  --faint: #9aa6b2;
+  --line: #d3dbe3;
+  --key: #ffffff;
+  --accent: #d99a12;
+  --accent-ink: #6e4c00;
+  --accent-soft: #f6e6bd;
+  --good: #2c7a57;
+  --bad: #c3402e;
+  --bad-soft: #f6d9d3;
+  --f-display: "Bricolage Grotesque", ui-rounded, system-ui, -apple-system, sans-serif;
+  --f-ui: "Bricolage Grotesque", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161c; --panel: #19212a; --ink: #e5ebf0; --muted: #8e9baa; --faint: #5b6876;
+    --line: #2a3541; --key: #232d38; --accent: #f0b531; --accent-ink: #f6d27d; --accent-soft: #3a3020;
+    --good: #5cc497; --bad: #f06a55; --bad-soft: #4a2622; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161c; --panel: #19212a; --ink: #e5ebf0; --muted: #8e9baa; --faint: #5b6876;
+  --line: #2a3541; --key: #232d38; --accent: #f0b531; --accent-ink: #f6d27d; --accent-soft: #3a3020;
+  --good: #5cc497; --bad: #f06a55; --bad-soft: #4a2622; color-scheme: dark;
+}
+html, body { background: var(--bg); color: var(--ink); }
+body { font-family: var(--f-ui); font-size: 15px; line-height: 1.45; -webkit-text-size-adjust: 100%; }
+* { box-sizing: border-box; }
+button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wrap { max-width: 560px; margin: 0 auto; padding-block: 10px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 14px; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.brand { font-family: var(--f-display); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 6px; }
+.brand .eye { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); transform: translateY(-2px); }
+.nav { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
+.nav button { border: 0; background: none; padding: 6px 11px; border-radius: 999px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.nav button[aria-current="true"] { background: var(--ink); color: var(--bg); }
+
+.label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* mode chips */
+.modes { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-inline: -4px; padding: 2px 4px; }
+.modes::-webkit-scrollbar { display: none; }
+.chip { flex: none; border: 1px solid var(--line); background: var(--panel); padding: 7px 12px; border-radius: 10px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
+.chip .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--bad); margin-left: 6px; transform: translateY(-2px); }
+
+.opts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--panel); }
+.seg button { border: 0; background: none; padding: 6px 10px; font-family: var(--f-mono); font-size: 13px; color: var(--muted); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.seg.disabled { opacity: .45; pointer-events: none; }
+.toggles { display: flex; gap: 6px; }
+.tog { border: 1px solid var(--line); background: var(--panel); border-radius: 9px; padding: 6px 10px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.tog[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
+.tog[aria-pressed="true"]::before { content: "● "; color: var(--accent); }
+
+/* stage */
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.hud { display: grid; grid-template-columns: 1fr 1fr 1fr auto; align-items: end; gap: 8px; }
+.hud .v { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 600; line-height: 1.1; }
+.hud .v small { font-size: 12px; color: var(--muted); font-weight: 400; }
+.iconbtn { border: 1px solid var(--line); background: var(--key); border-radius: 10px; width: 40px; height: 36px; display: grid; place-items: center; font-size: 18px; }
+.bar { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s linear; }
+
+.textbox { position: relative; height: calc(3 * 1.62em); overflow: hidden; font-family: var(--f-mono); font-size: 20px; line-height: 1.62; }
+#text { position: relative; transition: transform .15s ease; color: var(--faint); word-break: normal; overflow-wrap: normal; }
+#text .w { white-space: nowrap; }
+#text span.c { position: relative; }
+#text .c.ok { color: var(--ink); }
+#text .c.bad { color: var(--bad); background: var(--bad-soft); border-radius: 3px; }
+#text .c.typed { color: var(--ink); }
+#text .c.cur::before { content: ""; position: absolute; left: -1px; top: .18em; bottom: .14em; width: 2px; background: var(--accent); border-radius: 1px; animation: blink 1s steps(1) infinite; }
+#text .c.sp.bad { background: var(--bad); opacity: .55; }
+.stage.running #text .c.cur::before { animation: none; }
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #text { transition: none; } #text .c.cur::before { animation: none; } }
+.stage.shake .textbox { animation: shake .18s; }
+@keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+#inp { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; color: transparent; caret-color: transparent; background: transparent; }
+.hint { margin: 0; font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.hint b { color: var(--ink); font-weight: 600; }
+.paused { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in oklab, var(--panel) 82%, transparent); font-family: var(--f-ui); font-size: 15px; font-weight: 600; pointer-events: none; }
+
+/* when typing, collapse everything above the stage */
+body.focus .hide-on-focus { display: none; }
+
+.about { display: grid; gap: 10px; }
+.about p { margin: 0; color: var(--muted); max-width: 62ch; }
+.about h3 { margin: 0; font-family: var(--f-display); font-size: 17px; }
+.targets { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-family: var(--f-mono); font-size: 12.5px; border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; background: var(--key); }
+
+/* keyboard drawing */
+.kb { display: grid; gap: 5px; padding: 8px 6px 9px; background: color-mix(in oklab, var(--line) 55%, var(--panel)); border-radius: 12px; user-select: none; }
+.kb .row { display: flex; justify-content: center; gap: 4px; }
+.kb .k { flex: 0 0 calc((100% - 36px) / 10); aspect-ratio: 0.8; border-radius: 5px; background: var(--key); display: grid; place-items: center; font-family: var(--f-mono); font-size: 13px; box-shadow: 0 1px 0 color-mix(in oklab, var(--ink) 25%, transparent); color: var(--muted); max-width: 100%; }
+.kb .k.on { color: var(--ink); font-weight: 600; }
+.kb .k.space { flex: 0 0 48%; aspect-ratio: auto; height: 26px; font-size: 11px; }
+.kb.small .k { font-size: 11px; aspect-ratio: 0.85; }
+
+/* results */
+.hero { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+.big { font-family: var(--f-display); font-weight: 800; font-size: 72px; line-height: .9; letter-spacing: -0.04em; }
+.big small { font-size: 18px; letter-spacing: 0; font-weight: 600; color: var(--muted); margin-left: 4px; }
+.pb { font-size: 12px; font-weight: 700; background: var(--accent); color: #1b1300; padding: 3px 8px; border-radius: 6px; letter-spacing: .04em; text-transform: uppercase; }
+.grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 330px) { .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 9px 10px; min-width: 0; }
+.stat .v { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 17px; font-weight: 600; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.card h2 { margin: 0; font-family: var(--f-display); font-size: 18px; text-wrap: balance; }
+.card p { margin: 0; }
+.muted { color: var(--muted); }
+.list { display: grid; gap: 0; }
+.li { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); min-width: 0; }
+.li:first-child { border-top: 0; }
+.pair { font-family: var(--f-mono); font-size: 15px; white-space: nowrap; }
+.pair .x { color: var(--good); font-weight: 600; }
+.pair .y { color: var(--bad); font-weight: 600; }
+.li .d { font-size: 13px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.li .d code { font-family: var(--f-mono); color: var(--ink); font-size: 12.5px; }
+.li .n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); }
+.review { font-family: var(--f-mono); font-size: 14px; line-height: 1.7; color: var(--muted); overflow-wrap: anywhere; }
+.review .bad { color: var(--bad); background: var(--bad-soft); border-radius: 3px; }
+.review .bad[data-got]::after { content: attr(data-got); font-size: 10px; vertical-align: super; color: var(--bad); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--key); padding: 10px 14px; border-radius: 12px; font-weight: 600; font-size: 15px; }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.accent { background: var(--accent); color: #1b1300; border-color: var(--accent); }
+
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .ax { fill: var(--muted); font-family: var(--f-mono); font-size: 10px; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .ln { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .ln2 { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 3 3; }
+.chart .area { fill: var(--accent); opacity: .14; }
+.chart .dot { fill: var(--accent); stroke: var(--panel); stroke-width: 2; }
+.chart .err { fill: var(--bad); }
+
+.meter { display: grid; grid-template-columns: 74px 1fr 40px; gap: 8px; align-items: center; font-size: 13px; }
+.meter .track { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.meter .track i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.meter .track i.badc { background: var(--bad); }
+.meter .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; color: var(--muted); }
+
+.legend { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.legend .ramp { width: 90px; height: 8px; border-radius: 4px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+td, th { text-align: left; padding: 7px 4px; border-top: 1px solid var(--line); }
+th { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; border-top: 0; }
+td.num, th.num { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.empty { border: 1px dashed var(--line); border-radius: 14px; padding: 18px; color: var(--muted); display: grid; gap: 8px; }
+.empty b { color: var(--ink); }
+.sync { font-size: 12px; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header class="top hide-on-focus">
+    <div class="brand"><span class="eye" aria-hidden="true"></span>Eyes Up</div>
+    <nav class="nav" aria-label="Sections">
+      <button data-view="practice" aria-current="true">Practice</button>
+      <button data-view="weak">Weak spots</button>
+      <button data-view="history">History</button>
+    </nav>
+  </header>
+
+  <!-- PRACTICE -->
+  <section id="v-practice" style="display:grid;gap:14px">
+    <div class="modes hide-on-focus" id="modes" role="group" aria-label="Drill type"></div>
+    <div class="opts hide-on-focus">
+      <div class="seg" id="lens" role="group" aria-label="Length"></div>
+      <div class="toggles">
+        <button class="tog" id="t-strict" aria-pressed="false" title="Wrong keys are not accepted; you must hit the right one">Strict</button>
+        <button class="tog" id="t-blind" aria-pressed="false" title="No red/green feedback until the end">Blind</button>
+      </div>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="hud">
+        <div><div class="label">WPM</div><div class="v" id="h-wpm">0</div></div>
+        <div><div class="label">Accuracy</div><div class="v" id="h-acc">100<small>%</small></div></div>
+        <div><div class="label" id="h-tl">Time</div><div class="v" id="h-time">0:30</div></div>
+        <button class="iconbtn" id="restart" aria-label="New text">↻</button>
+      </div>
+      <div class="bar"><i id="h-bar"></i></div>
+      <div class="textbox" id="textbox">
+        <div id="text" aria-live="off"></div>
+        <input id="inp" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="done" aria-label="Type the text shown">
+        <div class="paused" id="paused" hidden>Paused · tap to keep going</div>
+      </div>
+      <p class="hint" id="hint"><span><b>Tap the text</b> to bring up the keyboard. The clock starts on your first key.</span></p>
+    </div>
+
+    <div class="about hide-on-focus" id="about"></div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="v-results" hidden style="display:grid;gap:14px"></section>
+
+  <!-- WEAK SPOTS -->
+  <section id="v-weak" hidden style="display:grid;gap:14px"></section>
+
+  <!-- HISTORY -->
+  <section id="v-history" hidden style="display:grid;gap:14px"></section>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------------- word material ---------------- */
+const BANK = `the be to of and in that have it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us is was are has had did said made find here thing many where very through long little own great old while same right still such last never under might each let both small large next early young important few public bad able place home world hand part child eye woman man life week case point group company number fact name side word water room mother area money story month lot study book job night business issue black white house kind head door high family city car level office power line face end member law idea plan table green fall paper music field river game market moment voice letter friend reason speak wait smile sleep morning quiet pocket jump puzzle zero quick quiz zone jazz pizza maze lazy ozone pink milk silk soap park ask task mask flask pool plum palm lamp swamp moss lamb knock kiwi wax box fox six mix axle wasp swap snap slam slim snow know known wall small mall pass kiss loop polo solo lemon salmon melon nylon napkin plank spoon soon moon noon lion loan alarm salsa sample simple apple maple panel novel oak map zoo wizard keep open close always often almost also along away walk talk call fill kill pill mill spill skill smell sell well swell mellow pillow follow hollow allow among lamp plump pump pumpkin pink mink sink link kilo pal opal nap pan man plan plans planks zap zip zoom zooms owl owls snow slow slowly sloppy loss moss boss gloss pass mass sass class glass sample napkin pasta salsa mama papa llama koala panda alpaca kayak polka moon spoon spool swamp swamps wasps swans swan swim swims swam mop map maps snaps slaps clasp grasp gasp wax waxy saxophone examples axis maximum max lax minx onyx sphinx it they type tired dirt virtue eight thirty right edit verb deity cube judge guide bridge fridge ridge fight die tie true tight theft buried bye by cut ice rice vice bird third birth fifth debt edge hedge high hide ride tide huge chef cheer teeth three tree free fur hurt jury duty deer beer bitter hire fire tire dice jet ruby turf gift tribe bridge thief brief chief juice ice cider rider tiger fiber debit credit bucket budget digit dirty river fever heavy hurry cherry berry the tribe guy buy dye eye yet try tidy giftedly bitterly thereby therefore either neither height weight freight eighty tribute brute truth fruit trick thick tick chick brick cried dried fried tried tidied bridged heir their there here where were very every everybody other bother brother further father either rather together children different direction picture future culture structure figure feature nature mixture furniture weird quiet quite quote equip equal queen quest quarter squad square squeeze unique technique zebra size prize freeze breeze crazy dozen lizard blizzard hazard puzzle sizzle nozzle fizzle buzz fuzz fuzzy dizzy frozen amaze blaze glaze graze gaze haze`.split(/\s+/).map(w => w.replace(/[^a-z]/g, "")).filter(w => w.length > 1);
+const WORDS = [...new Set(BANK)];
+const COMMON = WORDS.slice(0, 230);
+
+const OUTER = new Set("qwaszxopklnm");
+const INNER = new Set("ertyuidfghjcvb");
+const SLIP_PAIRS = ["er","rt","ty","yu","ui","io","op","we","qw","as","sd","df","fg","gh","hj","jk","kl","zx","xc","cv","vb","bn","nm"];
+
+const PASSAGES = [
+  "The bus was late again, so Mira walked the long way past the bakery. The windows were fogged from the ovens, and someone had drawn a small cat in the glass with one finger. She stopped to look, decided it needed a tail, and added one before the light changed.",
+  "Good typing is mostly trust. Your thumbs already know where the keys are; the trouble starts when your eyes go down to check. Keep them on the words, accept a few mistakes, and let your hands find the rhythm. Speed shows up later, almost by accident.",
+  "Every spring the river near our town rises a few feet and covers the lowest path. Nobody minds. People simply take the upper trail, nod at the ducks, and wait for the water to give the path back in June, a little muddier than before.",
+  "To make a decent cup of tea, start with fresh water and do not rush it. Warm the pot first, measure the leaves, and pour just off the boil. Four minutes is usually right. If it tastes bitter, the water was too hot or you waited too long.",
+  "The old map in the hallway shows a road that no longer exists. It curls north around a lake, crosses a bridge, and ends at a village marked with a tiny church. My grandfather swore he drove it once, at night, and never found it again.",
+  "Most bugs are not mysterious. They come from an assumption that was true yesterday and quietly stopped being true. The fix is often small; finding it is the slow part. Read the error, check what changed, and question the thing you are most sure about.",
+  "On Saturday morning the market fills up before nine. There are peaches in paper bags, bunches of basil, jars of honey with handwritten labels, and a man who sells only knives. He sharpens yours for free if you stand and listen to his stories.",
+  "A good habit is easier to keep when it is small. Ten minutes a day beats an hour once a week, because the hands remember what they do often. Pick a time, sit down, run a few drills, and stop while it still feels easy.",
+  "The storm knocked out the power just after dinner. We found two candles, a flashlight with weak batteries, and a deck of cards missing the queen of hearts. We played anyway, using a folded receipt as the queen, and nobody wanted the lights to come back.",
+  "Learning a new keyboard feels clumsy at first. Familiar words fall apart into separate letters, and every space seems to land a little late. Then one day a whole phrase comes out in one smooth motion, and you notice you were not looking down at all.",
+  "Quick reflexes help, but accuracy matters more. A typist who never fixes mistakes types fast and says little. Slow down until the errors fade, then let the pace climb on its own. The goal is fluent, quiet hands and eyes that stay on the page.",
+  "The lighthouse keeper kept a logbook for forty years. Each entry noted the wind, the waves, the ships that passed, and sometimes a single line about her day. One reads only: fog all morning, soup for lunch, saw a whale at four."
+];
+const PUNCT = [
+  "Wait, are you sure?", "Yes! We did it.", "It's late; let's go home.", "She said, \"Bring snacks.\"",
+  "Note: the store closes at noon.", "Well, maybe. Ask Sam first.", "Don't forget the keys, the map, and the tickets.",
+  "Why not? It's only a short walk.", "Okay, okay; I'll call him back.", "\"Ready?\" she asked. \"Almost!\"",
+  "It wasn't mine, it was theirs.", "Three things: bread, eggs, milk.", "Stop! The paint's still wet.",
+  "He paused, then said, \"Fine.\"", "Are we there yet? No. Soon!", "That's the plan; we'll see.",
+  "Hmm, I'm not sure that's right.", "First, breathe. Then, type.", "You're up next; good luck!",
+  "The sign read: \"Closed for lunch.\"", "Yes, no, maybe; who knows?", "We'll meet at Jo's, won't we?",
+  "Careful, it's hot!", "Honestly? I liked the first one.", "Here's the deal: you cook, I clean."
+];
+const NAMES = ["Maria","Priya","Diego","Hana","Omar","Zoe","Quinn","Yuki","Erik","Jamal","Elena","Iris","Nora","Kai","Lena","Tomas"];
+const PLACES = ["Tokyo","Seoul","Paris","Lima","Oslo","Cairo","Texas","Peru","Boston","Kyoto","Vienna","Wales","Lagos","Quebec","Zurich"];
+const DAYS = ["Monday","Tuesday","Friday","Sunday","June","April","March","October"];
+const ACR = ["OK","TV","USA","ASAP","PDF","FAQ","ID","UK"];
+
+/* ---------------- helpers ---------------- */
+const $ = s => document.querySelector(s);
+const rnd = n => Math.floor(Math.random() * n);
+const pick = a => a[rnd(a.length)];
+const int = (a, b) => a + rnd(b - a + 1);
+const pad = (n, w = 2) => String(n).padStart(w, "0");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const code = ch => ch.codePointAt(0);
+const fromCode = c => String.fromCodePoint(+c);
+const show = ch => ch === " " ? "␣" : ch;
+const frac = (w, set) => { let c = 0; for (const ch of w) if (set.has(ch)) c++; return c / w.length; };
+const OUTER_POOL = WORDS.filter(w => frac(w, OUTER) >= 0.75);
+const INNER_POOL = WORDS.filter(w => frac(w, INNER) >= 0.8);
+
+function wordsUntil(n, fn) { const out = []; while (out.length < n) out.push(fn()); return out.join(" "); }
+function sentencesUntil(n, fn) { let out = [], count = 0; while (count < n) { const s = fn(); out.push(s); count += s.split(" ").length; } return out.join(" "); }
+
+const NUMBER_TOKENS = [
+  () => String(int(1, 9999)), () => `${int(1, 12)}:${pad(int(0, 59))}`, () => `${int(1, 12)}/${int(1, 28)}`,
+  () => `${int(1, 99)}.${pad(int(0, 99))}`, () => `${int(200, 989)}-${pad(int(0, 9999), 4)}`, () => String(int(1950, 2035)),
+  () => String(int(10, 99)), () => `${int(1, 9)}${int(0, 9)}${int(0, 9)}${int(0, 9)}`, () => `(${int(200, 989)}) ${int(200, 989)}-${pad(int(0, 9999), 4)}`
+];
+const SYMBOL_TOKENS = [
+  () => "#" + pick(COMMON), () => "@" + pick(NAMES).toLowerCase(), () => int(5, 99) + "%", () => "$" + int(2, 300),
+  () => { const a = int(1, 9), b = int(1, 9); return `${a}+${b}=${a + b}`; }, () => `${int(2, 9)}*${int(2, 9)}`,
+  () => `[${pick(COMMON)}]`, () => `{${pick(COMMON)}}`, () => `<${pick(COMMON)}>`, () => `~/${pick(COMMON)}`,
+  () => `${pick(COMMON)}_${pick(COMMON)}`, () => `${pick(COMMON)}|${pick(COMMON)}`, () => `${pick(COMMON)}\\${pick(COMMON)}`,
+  () => "^_^", () => `${pick(COMMON)}&${pick(COMMON)}`, () => `(${pick(COMMON)})`, () => `${pick(COMMON)}/${pick(COMMON)}`,
+  () => "€" + int(2, 90), () => "£" + int(2, 90), () => `${pick(NAMES).toLowerCase()}@${pick(COMMON)}.com`,
+  () => `x^${int(2, 5)}`, () => "<3", () => `${int(5, 9)} > ${int(1, 4)}`, () => `${pick(COMMON)}-${pick(COMMON)}`, () => "•"
+];
+const CAP_TEMPLATES = [
+  () => `${pick(NAMES)} flew to ${pick(PLACES)} on ${pick(DAYS)}.`, () => `${pick(NAMES)} and ${pick(NAMES)} met in ${pick(PLACES)}.`,
+  () => `Call ${pick(NAMES)} ${pick(ACR) === "ASAP" ? "ASAP" : "today"} about the ${pick(COMMON)}.`, () => `In ${pick(DAYS)}, ${pick(NAMES)} visits ${pick(PLACES)}.`,
+  () => `The ${pick(COMMON)} from ${pick(PLACES)} arrives ${pick(DAYS)}.`, () => `${pick(NAMES)} says the ${pick(ACR)} is fine.`,
+  () => `Ask ${pick(NAMES)} if ${pick(PLACES)} is OK.`, () => `${pick(NAMES)} Moved To ${pick(PLACES)}.`
+];
+
+const MODES = {
+  words:  { name: "Words", desc: "The most common English words. Your baseline: keep your eyes on the line and let your thumbs work.", layer: "abc", keys: null, gen: n => wordsUntil(n, () => pick(COMMON)) },
+  outer:  { name: "Outer letters", desc: "Words built from the edge keys (q w a s z x on the left, o p k l n m on the right). These need the longest thumb reach and get missed most.", layer: "abc", keys: "qwaszxopklnm", gen: n => wordsUntil(n, () => pick(OUTER_POOL)) },
+  inner:  { name: "Inner letters", desc: "Words from the middle keys (e r t y u i, d f g h j, c v b). Your thumbs cross over here, so left and right thumb timing matters.", layer: "abc", keys: "ertyuidfghjcvb", gen: n => wordsUntil(n, () => pick(INNER_POOL)) },
+  slips:  { name: "Common slips", desc: "Words that contain neighbouring key pairs that are easy to hit by mistake on a phone: e/r, i/o, n/m, b/n, a/s, and more.", layer: "abc", keys: "ertyuiopasdfghjklzxcvbnm", gen: n => genSlips(n) },
+  caps:   { name: "Capitals", desc: "Names, places and short acronyms. Practise the shift tap without breaking rhythm. Auto-capitalisation is off, so every capital is yours.", layer: "abc", keys: null, gen: n => sentencesUntil(n, () => pick(CAP_TEMPLATES)()) },
+  numbers:{ name: "Numbers", desc: "Times, dates, prices and phone numbers mixed with words, so you practise jumping to the 123 layer and back.", layer: "123", keys: "1234567890-/:().", gen: n => wordsUntil(n, () => Math.random() < 0.65 ? pick(NUMBER_TOKENS)() : pick(COMMON)) },
+  symbols:{ name: "Symbols", desc: "Hashtags, emails, maths and brackets. This is the #+= layer: two taps deep, and where most people look down.", layer: "sym", keys: "[]{}#%^*+=_\\|~<>€£•@$&", gen: n => wordsUntil(n, () => Math.random() < 0.7 ? pick(SYMBOL_TOKENS)() : pick(COMMON)) },
+  punct:  { name: "Punctuation", desc: "Short sentences with commas, apostrophes, quotes, colons and question marks. Smart quotes are counted as straight quotes.", layer: "123", keys: ".,?!'\":;", gen: n => sentencesUntil(n, () => pick(PUNCT)) },
+  passage:{ name: "Passages", desc: "A full paragraph of real prose. Lengths are fixed by the passage; finish it to see your score.", layer: "abc", keys: null, fixed: true, gen: () => pick(PASSAGES) },
+  drill:  { name: "My drill", desc: "", layer: "abc", keys: null, fixed: true, gen: () => buildDrill().text }
+};
+const MODE_ORDER = ["words","outer","inner","slips","caps","numbers","symbols","punct","passage","drill"];
+const LENS = [{ id: "t30", label: "30s", t: 30 }, { id: "t60", label: "60s", t: 60 }, { id: "t120", label: "2m", t: 120 }, { id: "w25", label: "25w", w: 25 }, { id: "w50", label: "50w", w: 50 }];
+
+function genSlips(n) {
+  return wordsUntil(n, () => {
+    const p = pick(SLIP_PAIRS);
+    let pool = WORDS.filter(w => w.includes(p[0]) && w.includes(p[1]));
+    if (pool.length < 3) pool = WORDS.filter(w => w.includes(p) || w.includes(p[1] + p[0]) || w.includes(p[0]) || w.includes(p[1]));
+    return pick(pool);
+  });
+}
+
+/* ---------------- keyboard geometry ---------------- */
+const LAYERS = {
+  abc: ["qwertyuiop", "asdfghjkl", "zxcvbnm"],
+  "123": ["1234567890", "-/:;()$&@\"", ".,?!'"],
+  sym: ["[]{}#%^*+=", "_\\|~<>€£¥•", ".,?!'"]
+};
+const POS = {};
+LAYERS.abc.forEach((r, y) => [...r].forEach((ch, i) => POS[ch] = { x: [0, 0.5, 1.5][y] + i, y }));
+const layerOf = ch => { const l = ch.toLowerCase(); if (POS[l]) return "abc"; if (ch === " ") return "space"; if (LAYERS["123"].join("").includes(ch)) return "123"; return "sym"; };
+
+function slipKind(exp, got, next, prev) {
+  if (got === next && next !== undefined && got !== exp) return "ahead";
+  if (got === prev && prev !== undefined) return "repeat";
+  if (exp === " ") return "missed space";
+  if (got === " ") return "early space";
+  if (exp.toLowerCase() === got.toLowerCase()) return "case";
+  const a = POS[exp.toLowerCase()], b = POS[got.toLowerCase()];
+  if (a && b) {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    if (Math.hypot(dx, dy) <= 1.2) return Math.abs(dy) < 0.5 ? (dx > 0 ? "right" : "left") : (dy > 0 ? "below" : "above");
+    return "far";
+  }
+  if (layerOf(exp) !== layerOf(got)) return "layer";
+  return "far";
+}
+const KIND_TEXT = {
+  right: "hit the key to the right", left: "hit the key to the left", above: "hit the key above", below: "hit the key below",
+  far: "not a neighbour, so a recall slip", ahead: "jumped ahead to the next letter", repeat: "repeated the previous key",
+  "missed space": "typed a letter where a space goes", "early space": "hit space too early", case: "shift was wrong", layer: "wrong keyboard layer"
+};
+
+/* ---------------- stats & storage ---------------- */
+const LS = "eyesup.stats.v1", LSP = "eyesup.prefs.v1";
+const blank = () => ({ v: 1, keys: {}, conf: {}, bi: {}, kinds: {}, runs: [], best: {}, totalMs: 0, updated: 0 });
+let S = blank();
+try { const raw = localStorage.getItem(LS); if (raw) S = Object.assign(blank(), JSON.parse(raw)); } catch (e) {}
+let prefs = { mode: "words", len: "t30", strict: false, blind: false };
+try { const raw = localStorage.getItem(LSP); if (raw) prefs = Object.assign(prefs, JSON.parse(raw)); } catch (e) {}
+const savePrefs = () => { try { localStorage.setItem(LSP, JSON.stringify(prefs)); } catch (e) {} };
+let cloudRef = null, syncState = "local";
+
+function saveStats() {
+  S.updated = Date.now();
+  try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {}
+  if (cloudRef) cloudRef.set(JSON.parse(JSON.stringify(S))).then(() => { syncState = "cloud"; }).catch(() => { syncState = "local"; });
+}
+async function initCloud() {
+  try {
+    if (!window.claude || !window.claude.use) return;
+    const [user, db] = await Promise.all([window.claude.use("user"), window.claude.use("db")]);
+    if (!user || !db) return;
+    const id = await user.id();
+    if (!id) return;
+    const ref = db.collection("data/users/" + id).doc("stats");
+    const snap = await ref.get();
+    cloudRef = ref; syncState = "cloud";
+    if (snap.exists) {
+      const d = snap.data() || {};
+      if ((d.updated || 0) > (S.updated || 0)) {
+        S = Object.assign(blank(), d);
+        try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {}
+        renderModes(); if (!$("#v-weak").hidden) renderWeak(); if (!$("#v-history").hidden) renderHistory();
+        if (prefs.mode === "drill" && !T.start) newTest();
+      } else if ((S.updated || 0) > (d.updated || 0)) saveStats();
+    } else if (S.runs.length) saveStats();
+  } catch (e) { syncState = "local"; }
+}
+
+function keyRate(k) { return (k.e + 0.4) / (k.n + 8); }
+function weakKeys(min = 6) {
+  return Object.entries(S.keys).filter(([, k]) => k.n >= min).map(([c, k]) => ({ ch: fromCode(c), rate: k.e / k.n, score: keyRate(k), n: k.n, e: k.e, ms: k.c ? k.t / k.c : null }))
+    .sort((a, b) => b.score - a.score);
+}
+function topConf(limit = 8) {
+  return Object.entries(S.conf).map(([k, n]) => { const [a, b] = k.split("_"); return { exp: fromCode(a), got: fromCode(b), n }; })
+    .filter(c => c.n >= 0.9).sort((a, b) => b.n - a.n).slice(0, limit);
+}
+function weakBigrams(limit = 6) {
+  return Object.entries(S.bi).filter(([, b]) => b.n >= 4 && b.e >= 1).map(([k, b]) => { const [a, c] = k.split("_"); return { bg: fromCode(a) + fromCode(c), rate: b.e / b.n, score: (b.e) / (b.n + 4), n: b.n }; })
+    .filter(b => !b.bg.includes(" ")).sort((a, b) => b.score - a.score).slice(0, limit);
+}
+
+/* ---------------- custom drill ---------------- */
+function buildDrill() {
+  const wk = weakKeys().slice(0, 5).filter(k => k.e >= 1);
+  const conf = topConf(4);
+  const bis = weakBigrams(4);
+  const slow = weakKeys(8).filter(k => k.ms && POS[k.ch]).sort((a, b) => b.ms - a.ms).slice(0, 3);
+  const totalKeys = Object.values(S.keys).reduce((s, k) => s + k.n, 0);
+  if (totalKeys < 150 || (!wk.length && !conf.length)) return { text: genSlips(40), targets: [], ready: false };
+  const weight = {};
+  const add = (ch, w) => { if (ch && ch !== " ") weight[ch.toLowerCase()] = (weight[ch.toLowerCase()] || 0) + w; };
+  wk.forEach((k, i) => add(k.ch, 3 - i * 0.4));
+  conf.forEach(c => { add(c.exp, 2); add(c.got, 1); });
+  slow.forEach(k => add(k.ch, 1.2));
+  const letterW = Object.fromEntries(Object.entries(weight).filter(([c]) => POS[c]));
+  const scored = WORDS.map(w => {
+    let s = 0; for (const ch of w) s += letterW[ch] || 0;
+    bis.forEach(b => { if (w.includes(b.bg.toLowerCase())) s += 4; });
+    conf.forEach(c => { if (w.includes(c.exp) && w.includes(c.got)) s += 2; });
+    return { w, s: s / Math.sqrt(w.length) };
+  }).filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 120);
+  const nonLetters = Object.keys(weight).filter(c => !POS[c]);
+  const out = [];
+  for (let i = 0; i < 42; i++) {
+    let w = scored.length ? pick(scored.slice(0, Math.max(12, (scored.length * (i % 3 ? 0.4 : 1)) | 0))).w : pick(COMMON);
+    if (nonLetters.length && Math.random() < 0.35) {
+      const s = pick(nonLetters);
+      if (/[0-9]/.test(s)) w = String(int(1, 99)) + s + String(int(0, 9));
+      else if (".,?!:;".includes(s)) w = w + s;
+      else if ("'\"".includes(s)) w = s + w + s;
+      else w = pick([w + s + pick(COMMON), s + w]);
+    }
+    if (wk.some(k => k.ch !== k.ch.toLowerCase()) && Math.random() < 0.15) w = w[0].toUpperCase() + w.slice(1);
+    out.push(w);
+  }
+  const targets = [
+    ...conf.map(c => `${show(c.exp)}→${show(c.got)}`),
+    ...wk.slice(0, 4).map(k => show(k.ch)),
+    ...bis.map(b => b.bg),
+    ...slow.map(k => `slow ${k.ch}`)
+  ];
+  return { text: out.join(" "), targets: [...new Set(targets)].slice(0, 10), ready: true };
+}
+
+/* ---------------- test engine ---------------- */
+let T = {};
+const stage = $("#stage"), inp = $("#inp"), textEl = $("#text"), textbox = $("#textbox");
+let spans = [], tick = null;
+
+function lenSpec() { const m = MODES[prefs.mode]; if (m.fixed) return { fixed: true }; return LENS.find(l => l.id === prefs.len) || LENS[0]; }
+
+function newTest() {
+  clearInterval(tick); tick = null;
+  const m = MODES[prefs.mode], L = lenSpec();
+  const n = L.fixed ? 0 : L.w ? L.w : Math.round(L.t * 1.6);
+  let target = m.gen(n).replace(/\s+/g, " ").trim();
+  if (L.w) target = target.split(" ").slice(0, L.w).join(" ");
+  T = { mode: prefs.mode, len: L.fixed ? "full" : L.id, limit: L.t ? L.t * 1000 : null, target, typed: "", keys: [], backs: 0,
+        start: null, last: null, pausedAt: null, pausedMs: 0, done: false, strict: prefs.strict, blind: prefs.blind };
+  inp.value = "";
+  renderText();
+  updateHud();
+  $("#paused").hidden = true;
+  stage.classList.remove("running");
+}
+
+function renderText() {
+  spans = [];
+  textEl.innerHTML = "";
+  appendText(T.target, 0);
+  textEl.style.transform = "translateY(0)";
+  paint(0, T.target.length);
+}
+function appendText(str, offset) {
+  const frag = document.createDocumentFragment();
+  let w = null;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    const s = document.createElement("span");
+    s.className = "c" + (ch === " " ? " sp" : "");
+    s.textContent = ch;
+    spans[offset + i] = s;
+    if (ch === " ") { w = null; frag.appendChild(s); }
+    else { if (!w) { w = document.createElement("span"); w.className = "w"; frag.appendChild(w); } w.appendChild(s); }
+  }
+  textEl.appendChild(frag);
+}
+function paint(from, to) {
+  const ty = T.typed, blind = T.blind && !T.done;
+  for (let i = Math.max(0, from); i <= Math.min(to, spans.length - 1); i++) {
+    const s = spans[i]; if (!s) continue;
+    let cls = "c" + (T.target[i] === " " ? " sp" : "");
+    if (i < ty.length) cls += blind ? " typed" : (ty[i] === T.target[i] ? " ok" : " bad");
+    if (i === ty.length && !T.done) cls += " cur";
+    s.className = cls;
+  }
+  const cur = spans[Math.min(ty.length, spans.length - 1)];
+  if (cur) {
+    const lh = parseFloat(getComputedStyle(textbox).lineHeight) || 32;
+    const line = Math.round(cur.offsetTop / lh);
+    textEl.style.transform = `translateY(${-Math.max(0, line - 1) * lh}px)`;
+  }
+}
+
+const normalize = v => v.replace(/[‘’ʼ]/g, "'").replace(/[“”]/g, '"').replace(/ /g, " ");
+
+function onInput() {
+  if (T.done) { inp.value = T.typed; return; }
+  const now = performance.now();
+  const v = normalize(inp.value);
+  const old = T.typed;
+  let p = 0; while (p < old.length && p < v.length && old[p] === v[p]) p++;
+  let typed = old.slice(0, p);
+  const dels = old.length - p;
+  if (dels > 0) T.backs += dels;
+  let rejected = false;
+  for (const ch of v.slice(p)) {
+    const i = typed.length;
+    if (i >= T.target.length) break;
+    if (!T.start) { T.start = now; startTick(); stage.classList.add("running"); }
+    const exp = T.target[i], ok = ch === exp;
+    const dt = T.last != null ? now - T.last : null;
+    T.last = now;
+    T.keys.push({ t: now - T.start - T.pausedMs, i, exp, got: ch, ok, dt, prev: i > 0 ? T.target[i - 1] : null, next: T.target[i + 1], pre: typed.slice(-12) });
+    if (!ok && T.strict) { rejected = true; continue; }
+    typed += ch;
+  }
+  T.typed = typed;
+  if (inp.value !== typed) inp.value = typed;
+  if (rejected) { stage.classList.remove("shake"); void stage.offsetWidth; stage.classList.add("shake"); }
+  if (T.limit && T.target.length - typed.length < 80) {
+    const more = " " + MODES[T.mode].gen(30).replace(/\s+/g, " ").trim();
+    const off = T.target.length; T.target += more; appendText(more, off);
+  }
+  paint(p - 1, Math.max(old.length, typed.length) + 1);
+  updateHud();
+  if (!T.limit && typed.length >= T.target.length) finish();
+}
+
+function elapsed() { if (!T.start) return 0; const now = T.pausedAt ?? performance.now(); return now - T.start - T.pausedMs; }
+function startTick() { clearInterval(tick); tick = setInterval(() => { if (T.pausedAt) return; updateHud(); if (T.limit && elapsed() >= T.limit) finish(); }, 200); }
+
+function liveStats() {
+  const ms = Math.max(elapsed(), 1);
+  let correct = 0; for (let i = 0; i < T.typed.length; i++) if (T.typed[i] === T.target[i]) correct++;
+  const ok = T.keys.filter(k => k.ok).length;
+  return { ms, correct, wpm: T.start ? correct / 5 / (ms / 60000) : 0, raw: T.start ? T.keys.length / 5 / (ms / 60000) : 0, acc: T.keys.length ? ok / T.keys.length * 100 : 100 };
+}
+function updateHud() {
+  const s = liveStats();
+  $("#h-wpm").textContent = T.start && s.ms > 1500 ? Math.round(s.wpm) : "–";
+  $("#h-acc").innerHTML = (T.blind && !T.done ? "–" : Math.round(s.acc)) + "<small>%</small>";
+  if (T.limit) {
+    const left = Math.max(0, T.limit - s.ms * (T.start ? 1 : 0));
+    const sec = Math.ceil(left / 1000);
+    $("#h-tl").textContent = "Time"; $("#h-time").textContent = `${Math.floor(sec / 60)}:${pad(sec % 60)}`;
+    $("#h-bar").style.width = (T.start ? Math.min(100, s.ms / T.limit * 100) : 0) + "%";
+  } else {
+    const words = T.target.split(" ").length, doneW = T.typed.split(" ").length - (T.typed.endsWith(" ") || !T.typed ? 1 : 0);
+    $("#h-tl").textContent = "Words"; $("#h-time").innerHTML = `${Math.max(0, T.typed ? doneW : 0)}<small>/${words}</small>`;
+    $("#h-bar").style.width = (T.typed.length / T.target.length * 100) + "%";
+  }
+}
+
+inp.addEventListener("input", onInput);
+inp.addEventListener("focus", () => {
+  document.body.classList.add("focus");
+  if (T.done) newTest();
+  if (T.pausedAt) { T.pausedMs += performance.now() - T.pausedAt; T.pausedAt = null; }
+  $("#paused").hidden = true;
+  const len = inp.value.length; try { inp.setSelectionRange(len, len); } catch (e) {}
+  setTimeout(() => window.scrollTo(0, 0), 60);
+});
+inp.addEventListener("blur", () => {
+  document.body.classList.remove("focus");
+  if (T.start && !T.done) { T.pausedAt = performance.now(); $("#paused").hidden = false; }
+});
+inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); } if (e.key === "Escape") { inp.blur(); } });
+document.addEventListener("selectionchange", () => { if (document.activeElement === inp) { const l = inp.value.length; if (inp.selectionStart !== l) try { inp.setSelectionRange(l, l); } catch (e) {} } });
+$("#restart").addEventListener("click", () => { newTest(); inp.focus(); });
+
+/* ---------------- finishing a run ---------------- */
+let lastRun = null;
+function finish() {
+  if (T.done) return;
+  T.done = true; clearInterval(tick);
+  const s = liveStats();
+  const ms = T.limit ? Math.min(s.ms, T.limit) : s.ms;
+  const wpm = s.correct / 5 / (ms / 60000), raw = T.keys.length / 5 / (ms / 60000);
+  const errs = T.keys.filter(k => !k.ok);
+  // per-second speed, 3 s rolling window of correct keys
+  const secs = Math.max(1, Math.ceil(ms / 1000)), series = [];
+  for (let sec = 1; sec <= secs; sec++) {
+    const lo = Math.max(0, sec * 1000 - 3000), hi = sec * 1000;
+    const n = T.keys.filter(k => k.ok && k.t > lo && k.t <= hi).length;
+    series.push(n / 5 / ((hi - lo) / 60000));
+  }
+  const errSecs = errs.map(k => Math.min(secs, Math.max(1, Math.ceil(k.t / 1000))));
+  const mean = series.reduce((a, b) => a + b, 0) / series.length;
+  const sd = Math.sqrt(series.reduce((a, b) => a + (b - mean) ** 2, 0) / series.length);
+  const consistency = mean > 0 ? Math.max(0, Math.round(100 - sd / mean * 100)) : 0;
+
+  // update long-term stats with decay so recent runs matter most
+  const D = 0.96;
+  for (const k of Object.values(S.keys)) { k.n *= D; k.e *= D; k.t *= D; k.c *= D; }
+  for (const b of Object.values(S.bi)) { b.n *= D; b.e *= D; }
+  for (const c in S.conf) { S.conf[c] *= D; if (S.conf[c] < 0.3) delete S.conf[c]; }
+  for (const c in S.kinds) S.kinds[c] *= D;
+  const kindsRun = {};
+  for (const k of T.keys) {
+    const kk = code(k.exp), K = S.keys[kk] || (S.keys[kk] = { n: 0, e: 0, t: 0, c: 0 });
+    K.n++; if (!k.ok) K.e++; else if (k.dt && k.dt > 40 && k.dt < 2500) { K.t += k.dt; K.c++; }
+    if (k.prev != null) { const bk = code(k.prev) + "_" + kk, B = S.bi[bk] || (S.bi[bk] = { n: 0, e: 0 }); B.n++; if (!k.ok) B.e++; }
+    if (!k.ok) {
+      const ck = kk + "_" + code(k.got); S.conf[ck] = (S.conf[ck] || 0) + 1;
+      k.kind = slipKind(k.exp, k.got, k.next, k.prev);
+      S.kinds[k.kind] = (S.kinds[k.kind] || 0) + 1; kindsRun[k.kind] = (kindsRun[k.kind] || 0) + 1;
+    }
+  }
+  for (const key in S.keys) if (S.keys[key].n < 0.5) delete S.keys[key];
+  for (const key in S.bi) if (S.bi[key].n < 0.5) delete S.bi[key];
+  const bestKey = T.mode + ":" + T.len;
+  const prevBest = S.best[bestKey] || 0;
+  const acc = s.acc;
+  const isPB = wpm > prevBest && acc >= 85 && ms > 8000;
+  if (isPB) S.best[bestKey] = Math.round(wpm * 10) / 10;
+  S.totalMs += ms;
+  S.runs.push({ at: Date.now(), mode: T.mode, len: T.len, wpm: Math.round(wpm * 10) / 10, raw: Math.round(raw * 10) / 10, acc: Math.round(acc * 10) / 10, ms: Math.round(ms), errs: errs.length });
+  if (S.runs.length > 400) S.runs = S.runs.slice(-400);
+  saveStats();
+  lastRun = { wpm, raw, acc, ms, errs, series, errSecs, consistency, isPB, prevBest, backs: T.backs, chars: T.keys.length, mode: T.mode, len: T.len, target: T.target, typed: T.typed, keys: T.keys, strict: T.strict };
+  inp.blur();
+  document.body.classList.remove("focus");
+  renderResults();
+  go("results");
+}
+
+/* ---------------- views ---------------- */
+function go(view) {
+  for (const v of ["practice", "results", "weak", "history"]) $("#v-" + v).hidden = v !== view;
+  document.querySelectorAll(".nav button").forEach(b => b.setAttribute("aria-current", String(b.dataset.view === view || (view === "results" && b.dataset.view === "practice"))));
+  if (view === "weak") renderWeak();
+  if (view === "history") renderHistory();
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll(".nav button").forEach(b => b.addEventListener("click", () => {
+  if (b.dataset.view === "practice" && (T.done || !T.start)) newTest();
+  go(b.dataset.view);
+}));
+
+function renderModes() {
+  const hasDrill = buildDrill().ready;
+  $("#modes").innerHTML = MODE_ORDER.map(id => `<button class="chip" data-mode="${id}" aria-pressed="${prefs.mode === id}">${MODES[id].name}${id === "drill" && hasDrill ? '<span class="dot" aria-label="ready"></span>' : ""}</button>`).join("");
+  $("#lens").innerHTML = LENS.map(l => `<button data-len="${l.id}" aria-pressed="${prefs.len === l.id}">${l.label}</button>`).join("");
+  $("#lens").classList.toggle("disabled", !!MODES[prefs.mode].fixed);
+  $("#t-strict").setAttribute("aria-pressed", prefs.strict);
+  $("#t-blind").setAttribute("aria-pressed", prefs.blind);
+  renderAbout();
+}
+function renderAbout() {
+  const m = MODES[prefs.mode];
+  let body = "";
+  if (prefs.mode === "drill") {
+    const d = buildDrill();
+    body = d.ready
+      ? `<h3>Built from your mistakes</h3><p>A new set every time you start. It leans on the keys you miss most, the letters you mix up, and the letter pairs that slow you down.</p><div class="targets">${d.targets.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>`
+      : `<h3>Not enough data yet</h3><p>Finish two or three runs in any mode (about 150 keystrokes) and this drill will target your own weak keys. Until then it runs the common-slips set.</p>`;
+  } else body = `<h3>${m.name}</h3><p>${m.desc}</p>`;
+  const keys = m.keys ? new Set(m.keys) : null;
+  $("#about").innerHTML = body + kbHTML(m.layer, ch => keys ? (keys.has(ch) ? { on: true, bg: "var(--accent-soft)" } : {}) : { on: true }, true);
+}
+function kbHTML(layer, fn, small) {
+  const rows = LAYERS[layer].map(r => `<div class="row">${[...r].map(ch => { const o = fn(ch) || {}; return `<div class="k${o.on ? " on" : ""}" style="${o.bg ? "background:" + o.bg : ""}" title="${esc(o.title || "")}">${esc(ch)}</div>`; }).join("")}</div>`).join("");
+  const so = fn(" ") || {};
+  return `<div class="kb${small ? " small" : ""}" aria-hidden="true">${rows}<div class="row"><div class="k space${so.on ? " on" : ""}" style="${so.bg ? "background:" + so.bg : ""}">space</div></div></div>`;
+}
+$("#modes").addEventListener("click", e => {
+  const b = e.target.closest("[data-mode]"); if (!b) return;
+  prefs.mode = b.dataset.mode; savePrefs(); renderModes(); newTest();
+});
+$("#lens").addEventListener("click", e => {
+  const b = e.target.closest("[data-len]"); if (!b) return;
+  prefs.len = b.dataset.len; savePrefs(); renderModes(); newTest();
+});
+$("#t-strict").addEventListener("click", () => { prefs.strict = !prefs.strict; savePrefs(); renderModes(); newTest(); });
+$("#t-blind").addEventListener("click", () => { prefs.blind = !prefs.blind; savePrefs(); renderModes(); newTest(); });
+
+/* ---------- charts ---------- */
+function lineChart(vals, opt = {}) {
+  const W = 340, H = opt.h || 120, P = { l: 30, r: 8, t: 10, b: 20 };
+  if (!vals.length) return "";
+  const max = Math.max(10, ...vals, ...(opt.vals2 || [])) * 1.1, min = 0;
+  const x = i => P.l + (vals.length === 1 ? (W - P.l - P.r) / 2 : i / (vals.length - 1) * (W - P.l - P.r));
+  const y = v => P.t + (1 - (v - min) / (max - min)) * (H - P.t - P.b);
+  const step = [5, 10, 20, 25, 50, 100, 200].find(s => max / s <= 5) || 250;
+  let g = "";
+  for (let v = 0; v <= max; v += step) g += `<line class="grid" x1="${P.l}" x2="${W - P.r}" y1="${y(v)}" y2="${y(v)}"/><text class="ax" x="${P.l - 6}" y="${y(v) + 3}" text-anchor="end">${v}</text>`;
+  const pts = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+  const area = `M${x(0)},${y(0)} L${pts.join(" L")} L${x(vals.length - 1)},${y(0)} Z`;
+  let extra = "";
+  if (opt.vals2) extra += `<polyline class="ln2" points="${opt.vals2.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ")}"/>`;
+  if (opt.marks) extra += opt.marks.map(i => `<circle class="err" cx="${x(i)}" cy="${H - P.b + 7}" r="2.6"/>`).join("");
+  const xl = opt.xlabels || [];
+  const xt = xl.map(([i, t]) => `<text class="ax" x="${x(i)}" y="${H - 3}" text-anchor="middle">${esc(t)}</text>`).join("");
+  const li = vals.length - 1;
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opt.label || "chart")}">${g}<path class="area" d="${area}"/><polyline class="ln" points="${pts.join(" ")}"/>${extra}<circle class="dot" cx="${x(li)}" cy="${y(vals[li])}" r="4"/>${xt}</svg></div>`;
+}
+
+/* ---------- results ---------- */
+function groupMistakes(keys) {
+  const g = {};
+  for (const k of keys) {
+    if (k.ok) continue;
+    const id = k.exp + "\u0000" + k.got;
+    const word = wordAt(lastRun ? lastRun.target : T.target, k.i);
+    (g[id] || (g[id] = { exp: k.exp, got: k.got, n: 0, kind: k.kind || slipKind(k.exp, k.got, k.next, k.prev), words: [] })).n++;
+    if (word && !g[id].words.includes(word) && g[id].words.length < 3) g[id].words.push(word);
+  }
+  return Object.values(g).sort((a, b) => b.n - a.n);
+}
+function wordAt(text, i) { let a = i, b = i; while (a > 0 && text[a - 1] !== " ") a--; while (b < text.length && text[b] !== " ") b++; if (text[i] === " ") { b = i; a = i; while (a > 0 && text[a - 1] !== " ") a--; return text.slice(a, b) + "␣"; } return text.slice(a, b); }
+
+function renderResults() {
+  const r = lastRun;
+  const groups = groupMistakes(r.keys);
+  const kindCounts = {}; r.errs.forEach(k => kindCounts[k.kind] = (kindCounts[k.kind] || 0) + 1);
+  const topKind = Object.entries(kindCounts).sort((a, b) => b[1] - a[1])[0];
+  const timed = r.keys.filter(k => k.ok && k.dt && k.dt > 40 && k.dt < 2500 && k.exp !== " ");
+  const byKey = {}; timed.forEach(k => { (byKey[k.exp] || (byKey[k.exp] = [])).push(k.dt); });
+  const avgAll = timed.reduce((s, k) => s + k.dt, 0) / Math.max(1, timed.length);
+  const slow = Object.entries(byKey).filter(([, a]) => a.length >= 2).map(([ch, a]) => ({ ch, ms: a.reduce((x, y) => x + y, 0) / a.length })).sort((a, b) => b.ms - a.ms).slice(0, 5);
+
+  // review: target with wrong chars marked
+  let review = "";
+  const firstErrAt = {}; r.keys.forEach(k => { if (!k.ok && firstErrAt[k.i] == null) firstErrAt[k.i] = k.got; });
+  const upto = Math.min(r.target.length, Math.max(r.typed.length, 1));
+  for (let i = 0; i < upto; i++) {
+    const ch = r.target[i], got = firstErrAt[i];
+    review += got != null ? `<span class="bad" data-got="${esc(show(got))}">${esc(ch === " " ? "·" : ch)}</span>` : esc(ch);
+  }
+
+  let insight = "";
+  if (!r.errs.length) insight = "Clean run. No wrong keys at all. Try a longer length, or turn on Blind to make it harder.";
+  else if (topKind) {
+    const [k, n] = topKind;
+    const share = Math.round(n / r.errs.length * 100);
+    const tips = {
+      right: "Your thumb is landing a little to the right. Aim for the left half of the key you want.",
+      left: "Your thumb is landing a little to the left. Aim for the right half of the key you want.",
+      above: "You are hitting the row above. Press slightly lower on the key.",
+      below: "You are hitting the row below. Press slightly higher on the key.",
+      far: "These are not neighbouring keys, so it is recall, not aim. Slow down on these words until the spelling is automatic.",
+      ahead: "Your thumbs are racing each other. Let one finish before the other lands.",
+      repeat: "You double-tapped. Lift fully between keys.",
+      "missed space": "You ran words together. Give the space bar its own beat.",
+      "early space": "You are hitting space before the word is finished. Finish the last letter, then space.",
+      case: "Shift slips. Tap shift as a separate beat before the capital.",
+      layer: "You were on the wrong keyboard layer. Glance at the text, not the keys, and learn where each layer's keys sit."
+    };
+    insight = `<b>${share}% of your slips: ${KIND_TEXT[k]}.</b> ${tips[k] || ""}`;
+  }
+
+  $("#v-results").innerHTML = `
+    <div class="hero">
+      <div><div class="label">Words per minute</div><div class="big">${Math.round(r.wpm)}<small>wpm</small></div></div>
+      ${r.isPB ? `<span class="pb">New best${r.prevBest ? ` · was ${Math.round(r.prevBest)}` : ""}</span>` : ""}
+    </div>
+    <div class="grid4">
+      <div class="stat"><div class="label">Accuracy</div><div class="v">${r.acc.toFixed(1)}%</div></div>
+      <div class="stat"><div class="label">Raw</div><div class="v">${Math.round(r.raw)}</div></div>
+      <div class="stat"><div class="label">Errors</div><div class="v">${r.errs.length}</div></div>
+      <div class="stat"><div class="label">Fixed</div><div class="v">${r.backs}</div></div>
+      <div class="stat"><div class="label">Time</div><div class="v">${(r.ms / 1000).toFixed(1)}s</div></div>
+      <div class="stat"><div class="label">Keys</div><div class="v">${r.chars}</div></div>
+      <div class="stat"><div class="label">Steady</div><div class="v">${r.consistency}%</div></div>
+      <div class="stat"><div class="label">Mode</div><div class="v" style="font-size:14px">${esc(MODES[r.mode].name)}</div></div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="r-again">Next run</button>
+      ${r.errs.length ? `<button class="btn accent" id="r-drill">Drill these mistakes</button>` : ""}
+      <button class="btn" id="r-weak">Weak spots</button>
+    </div>
+    <div class="card"><h2>Speed over the run</h2>${lineChart(r.series, { label: "WPM each second", marks: r.errSecs.map(s => s - 1), xlabels: [[0, "1s"], [r.series.length - 1, r.series.length + "s"]] })}
+      <p class="muted" style="font-size:12.5px">Rolling 3-second speed. Red dots under the line mark wrong keys.</p></div>
+    ${r.errs.length ? `<div class="card"><h2>What went wrong</h2><p>${insight}</p><div class="list">${groups.slice(0, 8).map(g => `
+      <div class="li"><span class="pair"><span class="x">${esc(show(g.exp))}</span> → <span class="y">${esc(show(g.got))}</span></span>
+      <span class="d">${KIND_TEXT[g.kind] || ""}${g.words.length ? ` · in ${g.words.map(w => `<code>${esc(w)}</code>`).join(", ")}` : ""}</span><span class="n">${g.n}×</span></div>`).join("")}</div></div>`
+      : `<div class="card"><h2>No mistakes</h2><p class="muted">${insight}</p></div>`}
+    ${slow.length ? `<div class="card"><h2>Slowest keys this run</h2><p class="muted" style="font-size:13px">Average time to reach each key, against your ${Math.round(avgAll)} ms average. Slow keys are usually the ones you are tempted to look for.</p>
+      ${slow.map(k => `<div class="meter"><span class="pair">${esc(show(k.ch))}</span><span class="track"><i style="width:${Math.min(100, k.ms / (slow[0].ms) * 100)}%"></i></span><span class="num">${Math.round(k.ms)}</span></div>`).join("")}</div>` : ""}
+    <div class="card"><h2>Review</h2><div class="review">${review}</div><p class="muted" style="font-size:12.5px">Red marks the spot of each wrong key; the small letter is what you typed.</p></div>`;
+  $("#r-again").onclick = () => { go("practice"); newTest(); inp.focus(); };
+  const rd = $("#r-drill"); if (rd) rd.onclick = () => { prefs.mode = "drill"; savePrefs(); renderModes(); go("practice"); newTest(); inp.focus(); };
+  $("#r-weak").onclick = () => go("weak");
+  renderModes();
+}
+
+/* ---------- weak spots ---------- */
+let heatLayer = "abc", heatMetric = "err";
+function renderWeak() {
+  const total = Object.values(S.keys).reduce((s, k) => s + k.n, 0);
+  const el = $("#v-weak");
+  if (total < 40) {
+    el.innerHTML = `<div class="card"><h2>Weak spots</h2><div class="empty"><b>Nothing to show yet.</b><span>Finish a run or two and this page maps your mistakes onto the iPhone keyboard: which keys you miss, which letters you swap, which direction your thumbs drift, and which keys you hesitate on.</span></div>
+      ${kbHTML("abc", () => ({}), false)}</div>`;
+    return;
+  }
+  const entries = Object.entries(S.keys).map(([c, k]) => ({ ch: fromCode(c), ...k }));
+  const map = {}; entries.forEach(k => { const l = k.ch; map[l] = map[l] ? { n: map[l].n + k.n, e: map[l].e + k.e, t: map[l].t + k.t, c: map[l].c + k.c } : { n: k.n, e: k.e, t: k.t, c: k.c }; });
+  // letters: merge capitals into the lowercase key
+  const merged = {}; for (const [ch, k] of Object.entries(map)) { const l = POS[ch.toLowerCase()] ? ch.toLowerCase() : ch; const m = merged[l] || (merged[l] = { n: 0, e: 0, t: 0, c: 0 }); m.n += k.n; m.e += k.e; m.t += k.t; m.c += k.c; }
+  const rates = Object.values(merged).filter(k => k.n >= 3).map(k => k.e / k.n);
+  const maxRate = Math.max(0.05, ...rates);
+  const speeds = Object.values(merged).filter(k => k.c >= 3).map(k => k.t / k.c);
+  const minS = Math.min(...speeds, 9999), maxS = Math.max(...speeds, 1);
+  const cell = ch => {
+    const k = merged[ch]; if (!k || k.n < 1) return {};
+    if (heatMetric === "err") { const r = k.e / k.n, p = Math.round(Math.min(1, r / maxRate) * 85); return { on: true, bg: `color-mix(in oklab, var(--bad) ${p}%, var(--key))`, title: `${show(ch)}: ${Math.round(r * 100)}% wrong of ${Math.round(k.n)}` }; }
+    if (!k.c) return { on: true }; const ms = k.t / k.c, p = Math.round(Math.min(1, (ms - minS) / Math.max(1, maxS - minS)) * 85);
+    return { on: true, bg: `color-mix(in oklab, var(--accent) ${p}%, var(--key))`, title: `${show(ch)}: ${Math.round(ms)} ms` };
+  };
+  const wk = weakKeys(5).slice(0, 8);
+  const conf = topConf(8);
+  const bis = weakBigrams(6);
+  const kinds = S.kinds; const ktotal = Object.values(kinds).reduce((a, b) => a + b, 0) || 1;
+  const dir = ["left", "right", "above", "below"].map(d => [d, kinds[d] || 0]);
+  const nb = dir.reduce((s, d) => s + d[1], 0);
+  const sideRate = side => { let n = 0, e = 0; for (const [ch, k] of Object.entries(merged)) { const p = POS[ch]; if (!p) continue; if ((p.x < 4.5) === (side === "L")) { n += k.n; e += k.e; } } return n ? e / n : 0; };
+  const L = sideRate("L"), R = sideRate("R");
+  const layerRate = lay => { let n = 0, e = 0; for (const [ch, k] of Object.entries(map)) { if (ch === " ") continue; if (layerOf(ch) === lay) { n += k.n; e += k.e; } } return n >= 5 ? e / n : null; };
+  const capsN = entries.filter(k => k.ch !== k.ch.toLowerCase() && POS[k.ch.toLowerCase()]).reduce((s, k) => [s[0] + k.n, s[1] + k.e], [0, 0]);
+  const lr = [["Letters", layerRate("abc")], ["Capitals", capsN[0] >= 5 ? capsN[1] / capsN[0] : null], ["123 layer", layerRate("123")], ["#+= layer", layerRate("sym")]].filter(x => x[1] != null);
+  const maxLR = Math.max(0.05, ...lr.map(x => x[1]));
+
+  const notes = [];
+  if (nb / ktotal > 0.4) {
+    const [d, n] = dir.sort((a, b) => b[1] - a[1])[0];
+    notes.push(`<b>${Math.round(nb / ktotal * 100)}% of your mistakes are neighbour keys</b>, so this is aim more than memory. The most common drift is ${d === "left" || d === "right" ? "to the " + d : d} (${Math.round(n / nb * 100)}% of neighbour slips).`);
+  }
+  if ((kinds.far || 0) / ktotal > 0.3) notes.push(`<b>${Math.round((kinds.far || 0) / ktotal * 100)}% are far-away keys</b>: the hand knows the area but not the word yet. Slower, accurate reps on those words fix this faster than speed runs.`);
+  if (Math.abs(L - R) > 0.015 && (L + R) > 0) notes.push(`Your <b>${L > R ? "left" : "right"} thumb</b> misses more: ${(Math.max(L, R) * 100).toFixed(1)}% vs ${(Math.min(L, R) * 100).toFixed(1)}% on the other side.`);
+  const spaceSlips = (kinds["missed space"] || 0) + (kinds["early space"] || 0);
+  if (spaceSlips / ktotal > 0.15) notes.push(`<b>Space bar timing</b> causes ${Math.round(spaceSlips / ktotal * 100)}% of mistakes. On iPhone the space bar sits right under c v b n m, so those keys and space get swapped.`);
+  if ((kinds.ahead || 0) / ktotal > 0.1) notes.push(`<b>Racing thumbs</b>: ${Math.round((kinds.ahead || 0) / ktotal * 100)}% of mistakes are the next letter typed early. Even out the rhythm before pushing speed.`);
+
+  el.innerHTML = `
+    <div class="card">
+      <h2>Your keyboard</h2>
+      <div class="opts">
+        <div class="seg" id="w-layer">${[["abc", "ABC"], ["123", "123"], ["sym", "#+="]].map(([id, l]) => `<button data-l="${id}" aria-pressed="${heatLayer === id}">${l}</button>`).join("")}</div>
+        <div class="seg" id="w-metric">${[["err", "Errors"], ["spd", "Speed"]].map(([id, l]) => `<button data-m="${id}" aria-pressed="${heatMetric === id}">${l}</button>`).join("")}</div>
+      </div>
+      ${kbHTML(heatLayer, cell, false)}
+      <div class="legend"><span>${heatMetric === "err" ? "fewer misses" : "faster"}</span><span class="ramp" style="background:linear-gradient(90deg,var(--key),${heatMetric === "err" ? "var(--bad)" : "var(--accent)"})"></span><span>${heatMetric === "err" ? "more misses" : "slower"}</span></div>
+    </div>
+    ${notes.length ? `<div class="card"><h2>What the data says</h2>${notes.map(n => `<p>${n}</p>`).join("")}</div>` : ""}
+    <div class="card"><h2>Keys you mix up</h2>
+      ${conf.length ? `<div class="list">${conf.map(c => `<div class="li"><span class="pair"><span class="x">${esc(show(c.exp))}</span> → <span class="y">${esc(show(c.got))}</span></span><span class="d">${KIND_TEXT[slipKind(c.exp, c.got)] || ""}</span><span class="n">${c.n >= 1 ? Math.round(c.n) + "×" : "<1"}</span></div>`).join("")}</div>
+      <p class="muted" style="font-size:12.5px">Green is the key you wanted, red is what you hit. Counts fade over time so recent runs matter most.</p>` : `<p class="muted">No repeated swaps yet.</p>`}
+    </div>
+    <div class="card"><h2>Weakest keys</h2>
+      ${wk.map(k => `<div class="meter"><span class="pair">${esc(show(k.ch))} <span class="muted" style="font-size:11px">${k.ms ? Math.round(k.ms) + "ms" : ""}</span></span><span class="track"><i class="badc" style="width:${Math.min(100, k.rate / Math.max(0.01, wk[0].rate) * 100)}%"></i></span><span class="num">${Math.round(k.rate * 100)}%</span></div>`).join("")}
+      ${bis.length ? `<div class="label" style="margin-top:4px">Tricky letter pairs</div><div class="targets">${bis.map(b => `<span class="tag">${esc(b.bg)} · ${Math.round(b.rate * 100)}%</span>`).join("")}</div>` : ""}
+    </div>
+    ${lr.length > 1 ? `<div class="card"><h2>By keyboard layer</h2>${lr.map(([n, r]) => `<div class="meter"><span>${n}</span><span class="track"><i class="badc" style="width:${r / maxLR * 100}%"></i></span><span class="num">${(r * 100).toFixed(1)}%</span></div>`).join("")}
+      <p class="muted" style="font-size:12.5px">Error rate on each layer. Layer switches are where most people look down.</p></div>` : ""}
+    <div class="actions"><button class="btn accent" id="w-drill">Start my drill</button></div>
+    <p class="sync">${syncState === "cloud" ? "Saved to your Claude account, so it follows you between devices." : "Saved in this browser only."}</p>`;
+  el.querySelector("#w-layer").onclick = e => { const b = e.target.closest("[data-l]"); if (b) { heatLayer = b.dataset.l; renderWeak(); } };
+  el.querySelector("#w-metric").onclick = e => { const b = e.target.closest("[data-m]"); if (b) { heatMetric = b.dataset.m; renderWeak(); } };
+  el.querySelector("#w-drill").onclick = () => { prefs.mode = "drill"; savePrefs(); renderModes(); go("practice"); newTest(); inp.focus(); };
+}
+
+/* ---------- history ---------- */
+function renderHistory() {
+  const el = $("#v-history"), runs = S.runs;
+  if (!runs.length) {
+    el.innerHTML = `<div class="card"><h2>History</h2><div class="empty"><b>No runs yet.</b><span>Every finished run lands here with its speed and accuracy, plus your best score for each drill and length.</span></div></div>`;
+    return;
+  }
+  const last = runs.slice(-40);
+  const avg = a => a.reduce((s, x) => s + x, 0) / a.length;
+  const recent = runs.slice(-10), earlier = runs.slice(-20, -10);
+  const today = new Date().toDateString();
+  const todayMs = runs.filter(r => new Date(r.at).toDateString() === today).reduce((s, r) => s + r.ms, 0);
+  const lenLabel = l => (LENS.find(x => x.id === l) || { label: "full" }).label;
+  const bests = Object.entries(S.best).sort((a, b) => b[1] - a[1]);
+  el.innerHTML = `
+    <div class="grid4">
+      <div class="stat"><div class="label">Last 10</div><div class="v">${Math.round(avg(recent.map(r => r.wpm)))}<small class="muted" style="font-size:11px"> wpm</small></div></div>
+      <div class="stat"><div class="label">Accuracy</div><div class="v">${avg(recent.map(r => r.acc)).toFixed(1)}%</div></div>
+      <div class="stat"><div class="label">Today</div><div class="v">${Math.round(todayMs / 60000)}<small class="muted" style="font-size:11px"> min</small></div></div>
+      <div class="stat"><div class="label">All time</div><div class="v">${Math.round(S.totalMs / 60000)}<small class="muted" style="font-size:11px"> min</small></div></div>
+    </div>
+    <div class="card"><h2>Speed, last ${last.length} runs</h2>
+      ${lineChart(last.map(r => r.wpm), { label: "WPM per run", vals2: last.map(r => r.wpm * r.acc / 100), xlabels: [[0, "older"], [last.length - 1, "latest"]] })}
+      <p class="muted" style="font-size:12.5px">Solid line is WPM. Dashed line is WPM × accuracy, which only climbs when you get faster without getting sloppier.${earlier.length ? ` Your last 10 runs average ${Math.round(avg(recent.map(r => r.wpm)) - avg(earlier.map(r => r.wpm))) >= 0 ? "+" : ""}${Math.round(avg(recent.map(r => r.wpm)) - avg(earlier.map(r => r.wpm)))} wpm against the 10 before.` : ""}</p>
+    </div>
+    ${bests.length ? `<div class="card"><h2>Personal bests</h2><table><thead><tr><th>Drill</th><th>Length</th><th class="num">WPM</th></tr></thead><tbody>
+      ${bests.map(([k, v]) => { const [m, l] = k.split(":"); return `<tr><td>${esc(MODES[m] ? MODES[m].name : m)}</td><td>${esc(lenLabel(l))}</td><td class="num">${Math.round(v)}</td></tr>`; }).join("")}</tbody></table>
+      <p class="muted" style="font-size:12.5px">A best only counts at 85% accuracy or higher.</p></div>` : ""}
+    <div class="card"><h2>Recent runs</h2><div style="overflow-x:auto"><table><thead><tr><th>When</th><th>Drill</th><th class="num">WPM</th><th class="num">Acc</th></tr></thead><tbody>
+      ${runs.slice(-15).reverse().map(r => { const d = new Date(r.at); return `<tr><td>${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</td><td>${esc(MODES[r.mode] ? MODES[r.mode].name : r.mode)} <span class="muted">${esc(lenLabel(r.len))}</span></td><td class="num">${Math.round(r.wpm)}</td><td class="num">${Math.round(r.acc)}%</td></tr>`; }).join("")}
+    </tbody></table></div></div>
+    <p class="sync">${syncState === "cloud" ? "Saved to your Claude account, so it follows you between devices." : "Saved in this browser only."}</p>`;
+}
+
+/* ---------------- boot ---------------- */
+renderModes();
+newTest();
+initCloud();
+})();
+</script>
+
+</body>
+</html>
